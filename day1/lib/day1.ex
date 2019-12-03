@@ -6,7 +6,8 @@ defmodule Day1 do
   @input_path Path.join("priv", "input.txt")
 
   @doc """
-  Calculates the fuel needed for a module with a given `mass`. If `mass` is not an integer, returns 0
+  Calculates the fuel needed for a module with a given `mass`. If `mass` is not an integer
+  or `mass` is < 1, returns 0.
 
   Fuel required to launch a given module is based on its mass.
   Specifically, to find the fuel required for a module,
@@ -33,10 +34,13 @@ defmodule Day1 do
       iex> Day1.calc_fuel([12, 14, 1969, 100756])
       34241
   """
-  def calc_fuel(mass) when is_integer(mass) do
-    mass
-    |> Integer.floor_div(3)
-    |> Kernel.-(2)
+  def calc_fuel(mass) when is_integer(mass) and mass > 0 do
+    fuel =
+      mass
+      |> Integer.floor_div(3)
+      |> Kernel.-(2)
+
+    (fuel > -1 && fuel) || 0
   end
 
   def calc_fuel(masses) when is_list(masses) do
@@ -48,7 +52,27 @@ defmodule Day1 do
   def calc_fuel(_), do: 0
 
   @doc """
-  Loads given puzzle input, splits on new lines and feeds it to calc_fuel/1
+  Recusively calls calc_fuel/1 adding the result to `total` until `mass` is 0.
+
+  ## Examples
+  iex>Day1.calc_total_fuel(14)
+  2
+
+  iex>Day1.calc_total_fuel(1969)
+  966
+
+  iex>Day1.calc_total_fuel(100756)
+  50346
+  """
+  def calc_total_fuel(mass, total \\ 0) when is_integer(total) and is_integer(mass) do
+    case calc_fuel(mass) do
+      new_mass when new_mass > 0 -> calc_total_fuel(new_mass, total + new_mass)
+      _ -> total
+    end
+  end
+
+  @doc """
+  Loads given puzzle input or puzzle input file if no input is given, splits on new lines, and calculates total fuel
 
   ## Examples
       iex> Day1.solve(~s'''
@@ -64,7 +88,7 @@ defmodule Day1 do
     |> Stream.filter(&(String.length(&1) > 0))
     |> Stream.map(&String.trim/1)
     |> Stream.map(&String.to_integer/1)
-    |> Enum.to_list()
-    |> calc_fuel()
+    |> Stream.map(&calc_total_fuel(&1))
+    |> Enum.sum()
   end
 end
