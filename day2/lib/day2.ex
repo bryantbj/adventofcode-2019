@@ -4,6 +4,7 @@ defmodule Day2 do
   """
 
   @input_path Path.join("priv", "input.txt")
+  @solution 19690720
 
   @doc """
   Processes one opcode
@@ -14,25 +15,37 @@ defmodule Day2 do
 
   ## Examples
 
-      iex>Day2.do_op([1,4,5,3,5,5], [1,4,5,3])
-      [1,4,5,10,5,5]
+      iex> Day2.do_op([1,4,5,3,5,5], [1,4,5,3])
+      {:ok, [1,4,5,10,5,5]}
 
-      iex>Day2.do_op([2,4,5,3,5,5], [2,4,5,3])
-      [2,4,5,25,5,5]
+      iex> Day2.do_op([2,4,5,3,5,5], [2,4,5,3])
+      {:ok, [2,4,5,25,5,5]}
 
-      iex>Day2.do_op([3], [3])
+      iex> Day2.do_op([3], [3])
       {:error, "unrecognized opcode"}
   """
   def do_op(input, [1, loc_a, loc_b, loc_store]) do
-    List.replace_at(input, loc_store, Enum.at(input, loc_a) + Enum.at(input, loc_b))
+    a = Enum.at(input, loc_a)
+    b = Enum.at(input, loc_b)
+    result = a + b
+    input = List.replace_at(input, loc_store, result)
+    {:ok, input}
   end
 
   def do_op(input, [2, loc_a, loc_b, loc_store]) do
-    List.replace_at(input, loc_store, Enum.at(input, loc_a) * Enum.at(input, loc_b))
+    a = Enum.at(input, loc_a)
+    b = Enum.at(input, loc_b)
+    result = a * b
+    input = List.replace_at(input, loc_store, result)
+    {:ok, input}
   end
 
   def do_op(_, _) do
     {:error, "unrecognized opcode"}
+  end
+
+  def to_action(input, op, a, b, loc_a, loc_b, c) do
+    [op: op, a: {loc_a, a}, b: {loc_b, b}, result: Enum.at(input, 0), one: Enum.at(input, 1), two: Enum.at(input, 2), storage: c]
   end
 
   @doc """
@@ -58,17 +71,17 @@ defmodule Day2 do
   end
 
   @doc """
-    Replace position 1 with the value 12
-    Replace position 2 with the value 2
+    Replace position 1 with the value of `noun`
+    Replace position 2 with the value of `verb`
 
     ## Examples
-    iex> Day2.program_alarm([0,0,0,0])
-    [0,12,2,0]
+    iex> Day2.set_noun_and_verb([0,0,0], 1, 2)
+    [0,1,2]
   """
-  def program_alarm(input) do
+  def set_noun_and_verb(input, noun, verb) do
     input
-    |> List.replace_at(1, 12)
-    |> List.replace_at(2, 2)
+    |> List.replace_at(1, noun)
+    |> List.replace_at(2, verb)
   end
 
   @doc """
@@ -91,7 +104,7 @@ defmodule Day2 do
   """
   def process_input(input, index) do
     with op when is_list(op) <- get_next_op(input, index),
-         input when is_list(input) <- do_op(input, op) do
+         {:ok, input} when is_list(input) <- do_op(input, op) do
       process_input(input, index + 4)
     else
       {:halt} -> input
@@ -100,17 +113,51 @@ defmodule Day2 do
     end
   end
 
-  def solve(input \\ nil) do
-    input =
-      (input || File.read!(@input_path))
+  def sanitize_input(input) do
+    input
       |> String.trim()
       |> String.split(",")
       |> Stream.filter(&(String.length(&1) > 0))
       |> Stream.map(&String.trim/1)
       |> Stream.map(&String.to_integer/1)
       |> Enum.to_list()
-      |> program_alarm()
+  end
 
-    Enum.at(process_input(input, 0), 0)
+  @doc """
+  Solve uses Task.async/1 to parallelize the processing of the solution
+
+  This could be simpler without the asynchronous tasks, but I just wanted
+  an excuse to try it.
+  """
+  def solve(input \\ nil) do
+    Solution.start_link(nil)
+
+    tasks = []
+
+    input =
+      (input || File.read!(@input_path))
+      |> sanitize_input()
+
+    for noun <- 0..99 do
+      for verb <- 0..99 do
+        # 0, 0; 0, 1; 0, 2; ... 1, 0; 1, 1; 1, 2; ...
+        if Solution.value() == nil do
+          task = Task.async(fn ->
+            program_input = set_noun_and_verb(input, noun, verb)
+
+            case process_input(program_input, 0) do
+              [@solution | _] -> Solution.update(100 * noun + verb)
+              _ -> nil
+            end
+          end)
+
+        tasks = [task | tasks]
+        tasks
+        end
+      end
+    end
+
+    Enum.map(tasks, &Task.await/1)
+    IO.puts Solution.value()
   end
 end
