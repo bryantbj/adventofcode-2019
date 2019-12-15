@@ -23,49 +23,27 @@ defmodule Pos do
   move(starting_pos, instruction, movements)
 
   ## Examples
-  iex> Pos.move(%Pos{x: 0, y: 0}, "R3")
-  [%Pos{x: 3, y: 0}, %Pos{x: 2, y: 0}, %Pos{x: 1, y: 0}]
+  iex> Pos.move({0, %Pos{x: 0, y: 0}}, "R3")
+  [{3, %Pos{x: 3, y: 0}}, {2, %Pos{x: 2, y: 0}}, {1, %Pos{x: 1, y: 0}}]
 
-  iex> Pos.move(%Pos{x: 0, y: 0}, "U2")
-  [%Pos{x: 0, y: 2}, %Pos{x: 0, y: 1}]
+  iex> Pos.move({0, %Pos{x: 0, y: 0}}, "U2")
+  [{2, %Pos{x: 0, y: 2}}, {1, %Pos{x: 0, y: 1}}]
   """
-
-  def move(pos, instruction, moves \\ [])
-
-  # Up, increments `y`
-  def move(%Pos{}, "U0", moves), do: moves
-  def move(%Pos{x: x, y: y}, "U" <> _ = instruction, moves) do
-    # num_spaces = String.to_integer(num_spaces)
-    pos = %Pos{x: x, y: y + 1}
+  def move(movement, instruction, moves \\ [])
+  def move(_, "U0", moves), do: moves
+  def move(_, "D0", moves), do: moves
+  def move(_, "R0", moves), do: moves
+  def move(_, "L0", moves), do: moves
+  def move({step, %Pos{x: x, y: y}}, instruction, moves) do
     [direction, num_spaces] = split_instruction(instruction)
-    move(pos, "#{direction}#{num_spaces - 1}", [pos | moves])
-  end
-
-  # Down, decrements `y`
-  def move(%Pos{}, "D0", moves), do: moves
-  def move(%Pos{x: x, y: y}, "D" <> _ = instruction, moves) do
-    # num_spaces = String.to_integer(num_spaces)
-    pos = %Pos{x: x, y: y - 1}
-    [direction, num_spaces] = split_instruction(instruction)
-    move(pos, "#{direction}#{num_spaces - 1}", [pos | moves])
-  end
-
-  # Right, increments `x`
-  def move(%Pos{}, "R0", moves), do: moves
-  def move(%Pos{x: x, y: y}, "R" <> _ = instruction, moves) do
-    # num_spaces = String.to_integer(num_spaces)
-    pos = %Pos{x: x + 1, y: y}
-    [direction, num_spaces] = split_instruction(instruction)
-    move(pos, "#{direction}#{num_spaces - 1}", [pos | moves])
-  end
-
-  # Left, decrements `x`
-  def move(%Pos{}, "L0", moves), do: moves
-  def move(%Pos{x: x, y: y}, "L" <> _ = instruction, moves) do
-    # num_spaces = String.to_integer(num_spaces)
-    pos = %Pos{x: x - 1, y: y}
-    [direction, num_spaces] = split_instruction(instruction)
-    move(pos, "#{direction}#{num_spaces - 1}", [pos | moves])
+    pos = case direction do
+      "U" -> %Pos{x: x, y: y + 1}
+      "R" -> %Pos{x: x + 1, y: y}
+      "D" -> %Pos{x: x, y: y - 1}
+      "L" -> %Pos{x: x - 1, y: y}
+    end
+    movement = {step + 1, pos}
+    move(movement, "#{direction}#{num_spaces - 1}", [movement | moves])
   end
 
   @doc """
